@@ -23,7 +23,7 @@ create policy corrections_read on public.correction_requests for select to authe
 create policy corrections_insert on public.correction_requests for insert to authenticated with check(employee_id=(select auth.uid()) and status='pending' and resolved_by is null and resolved_at is null);
 create policy audit_manager_read on public.audit_log for select to authenticated using(public.is_manager());
 -- Checadas: solo servidor; nunca permitir escritura directa a attendance.
-create or replace function public.clock_event(p_kind text,p_lat double precision,p_lon double precision,p_accuracy double precision) returns timestamptz language plpgsql security definer set search_path=public as $$
+create or replace function public.clock_event(p_kind text,p_lat double precision,p_lon double precision,p_accuracy double precision,p_branch_id uuid default null) returns timestamptz language plpgsql security definer set search_path=public as $$
 declare v_uid uuid:=auth.uid();v_shift public.shifts%rowtype;v_open public.attendance%rowtype;v_time timestamptz:=clock_timestamp();v_branch uuid;begin
 if v_uid is null or not exists(select 1 from public.profiles where id=v_uid and active) then raise exception 'Cuenta no activa';end if;
 if p_kind not in ('in','out') then raise exception 'Movimiento inválido';end if;
@@ -32,14 +32,15 @@ select * into v_open from public.attendance where employee_id=v_uid and clock_ou
 if p_kind='in' then
 if found then raise exception 'Ya tienes una jornada abierta';end if;
 select * into v_shift from public.shifts where employee_id=v_uid and starts_at<=v_time+interval '12 hours' and ends_at>=v_time-interval '12 hours' order by abs(extract(epoch from (starts_at-v_time))) limit 1;
-v_branch:=coalesce(v_shift.branch_id,(select default_branch_id from public.profiles where id=v_uid));
+if p_branch_id is null or not exists(select 1 from public.branches where id=p_branch_id) then raise exception 'Selecciona una sucursal válida';end if;
+v_branch:=p_branch_id;
 insert into public.attendance(employee_id,shift_id,clock_in_at,clock_in_branch_id,current_branch_id,clock_in_method,clock_in_accuracy_m)values(v_uid,v_shift.id,v_time,v_branch,v_branch,'gps_unverified',p_accuracy);
 else
 if not found then raise exception 'No tienes una jornada abierta';end if;
 update public.attendance set clock_out_at=v_time,clock_out_branch_id=current_branch_id,clock_out_method='gps_unverified',clock_out_accuracy_m=p_accuracy where id=v_open.id;
 end if;
 return v_time;end$$;
-revoke all on function public.clock_event(text,double precision,double precision,double precision) from public;grant execute on function public.clock_event(text,double precision,double precision,double precision) to authenticated;
+revoke all on function public.clock_event(text,double precision,double precision,double precision,uuid) from public;grant execute on function public.clock_event(text,double precision,double precision,double precision,uuid) to authenticated;
 create or replace function public.authorize_transfer(p_attendance_id uuid,p_destination_branch_id uuid,p_reason text) returns void language plpgsql security definer set search_path=public as $$declare v public.attendance%rowtype;begin
 if not public.is_manager() then raise exception 'Solo Gerencia';end if;
 if nullif(trim(p_reason),'') is null then raise exception 'Motivo requerido';end if;
