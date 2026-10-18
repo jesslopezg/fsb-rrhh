@@ -5,6 +5,6 @@ export const supabase=configured?createClient(url,key,{auth:{persistSession:true
 export type Profile={id:string;full_name:string;role:'manager'|'employee';active:boolean;default_branch_id:string|null};
 export type Branch={id:string;name:string};
 export type Shift={id:string;employee_id:string;branch_id:string;starts_at:string;ends_at:string;commission_starts_at:string|null;commission_ends_at:string|null;status:string};
-export type Attendance={id:string;employee_id:string;shift_id:string|null;clock_in_at:string;clock_out_at:string|null;clock_in_branch_id:string|null;clock_out_branch_id:string|null;clock_in_method:string|null;clock_out_method:string|null;created_at:string};
+export type Attendance={id:string;employee_id:string;shift_id:string|null;clock_in_at:string;clock_out_at:string|null;clock_in_branch_id:string|null;clock_out_branch_id:string|null;current_branch_id:string|null;clock_in_method:string|null;clock_out_method:string|null;created_at:string};
 export const fmt=(v:string|null|undefined)=>v?new Date(v).toLocaleString('es-MX',{dateStyle:'short',timeStyle:'short'}):'—';
 export const dateLocal=(v:Date)=>{const x=new Date(v.getTime()-v.getTimezoneOffset()*60000);return x.toISOString().slice(0,16)};
