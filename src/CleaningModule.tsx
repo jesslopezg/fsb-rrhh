@@ -16,7 +16,8 @@ export default function CleaningModule({branches,userId,manager,assignedBranchId
  const available=templates.filter(t=>t.branch_id===branch&&t.weekday===weekday),shifts=[...new Set(available.map(t=>t.shift_code))],selectedShift=shifts.includes(shift)?shift:(shifts[0]??shift);
  const current=handoffs.find(h=>h.branch_id===branch&&h.work_date===date&&h.shift_code===selectedShift);
  const tasks=checks.filter(c=>c.handoff_id===current?.id);const scheduled=available.filter(t=>t.shift_code===selectedShift);const completed=tasks.filter(t=>t.status==='done').length;
- const awaiting=handoffs.filter(h=>h.submitted_at&&!h.received_at&&(manager||h.branch_id===assignedBranchId)&&(h.submitted_by??h.created_by)!==userId); const myDeliveries=handoffs.filter(h=>h.submitted_by===userId);\n const templateName=(id:string)=>templates.find(t=>t.id===id)?.activity??'Actividad';
+ const awaiting=handoffs.filter(h=>h.submitted_at&&!h.received_at&&(manager||h.branch_id===assignedBranchId)&&(h.submitted_by??h.created_by)!==userId); const myDeliveries=handoffs.filter(h=>h.submitted_by===userId);
+ const templateName=(id:string)=>templates.find(t=>t.id===id)?.activity??'Actividad';
  const canEdit=!!current&&!current.submitted_at&&(manager||!!assignedBranchId&&assignedBranchId===branch);
  const canValidate=!!current?.submitted_at&&!current.received_at&&(current.submitted_by??current.created_by)!==userId&&(manager||assignedBranchId===branch);
  async function call(fn:string,args:Record<string,unknown>){if(!supabase)return;setBusy(true);setMsg('');try{const{error}=await supabase.rpc(fn,args);if(error)throw error;await load();setMsg('Guardado correctamente.')}catch(e){setMsg(e instanceof Error?e.message:'No se pudo guardar')}finally{setBusy(false)}}
