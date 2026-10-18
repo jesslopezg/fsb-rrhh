@@ -1,4 +1,5 @@
 import {useEffect,useState} from 'react';
+import type {FormEvent} from 'react';
 import {supabase} from './lib';
 import type {Branch} from './lib';
 
@@ -10,7 +11,7 @@ export default function AdditionalActivities({userId,manager,hasOpenAttendance,a
  const today=todayTijuana();
  async function load(){if(!supabase)return;let query=supabase.from('additional_work_activities').select('*').order('created_at',{ascending:false}).limit(150);if(!manager)query=query.eq('employee_id',userId).eq('work_date',today);const{data,error}=await query;if(error)setMessage(error.message);else setItems(data??[])}
  useEffect(()=>{void load()},[userId,manager,today]);
- async function save(e:React.FormEvent){e.preventDefault();if(!supabase)return;if(!assignedBranchId){setMessage('No se identificó una sucursal. Registra tu entrada o consulta a Gerencia.');return;}if(!manager&&!hasOpenAttendance){setMessage('Para registrar actividades debes tener una jornada abierta.');return;}if(description.trim().length<5){setMessage('Describe la actividad con al menos 5 caracteres.');return;}setBusy(true);setMessage('');try{const{error}=await supabase.from('additional_work_activities').insert({employee_id:userId,branch_id:assignedBranchId,work_date:today,category,description:description.trim()});if(error)throw error;setDescription('');await load();setMessage('Actividad adicional registrada correctamente.')}catch(error){setMessage(error instanceof Error?error.message:'No se pudo guardar')}finally{setBusy(false)}}
+ async function save(e:FormEvent){e.preventDefault();if(!supabase)return;if(!assignedBranchId){setMessage('No se identificó una sucursal. Registra tu entrada o consulta a Gerencia.');return;}if(!manager&&!hasOpenAttendance){setMessage('Para registrar actividades debes tener una jornada abierta.');return;}if(description.trim().length<5){setMessage('Describe la actividad con al menos 5 caracteres.');return;}setBusy(true);setMessage('');try{const{error}=await supabase.from('additional_work_activities').insert({employee_id:userId,branch_id:assignedBranchId,work_date:today,category,description:description.trim()});if(error)throw error;setDescription('');await load();setMessage('Actividad adicional registrada correctamente.')}catch(error){setMessage(error instanceof Error?error.message:'No se pudo guardar')}finally{setBusy(false)}}
  const visible=items.filter(i=>branchFilter==='all'||i.branch_id===branchFilter);
  return <div className="panel" id="fsb-otras-actividades">
  <h2>Otras actividades realizadas hoy</h2><p className="muted">Registra tareas adicionales a la limpieza. Cada actividad queda asociada a tu cuenta, fecha y sucursal; no modifica la lista de limpieza ni la checada.</p>
