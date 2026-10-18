@@ -17,7 +17,7 @@ export default function CleaningModule({branches,userId,manager,assignedBranchId
  const current=handoffs.find(h=>h.branch_id===branch&&h.work_date===date&&h.shift_code===selectedShift);
  const tasks=checks.filter(c=>c.handoff_id===current?.id);const scheduled=available.filter(t=>t.shift_code===selectedShift);const completed=tasks.filter(t=>t.status==='done').length;
  const templateName=(id:string)=>templates.find(t=>t.id===id)?.activity??'Actividad';
- const canEdit=!!current&&!current.submitted_at&&(current.created_by===userId||manager);
+ const canEdit=!!current&&!current.submitted_at&&(manager||!!assignedBranchId&&assignedBranchId===branch);
  const canValidate=!!current?.submitted_at&&!current.received_at&&(current.created_by!==userId||manager);
  async function call(fn:string,args:Record<string,unknown>){if(!supabase)return;setBusy(true);setMsg('');try{const{error}=await supabase.rpc(fn,args);if(error)throw error;await load();setMsg('Guardado correctamente.')}catch(e){setMsg(e instanceof Error?e.message:'No se pudo guardar')}finally{setBusy(false)}}
  return <section className="panel" id="fsb-limpieza"><h2>Pendientes y Supervisión de Turnos</h2><p className="muted">Checklist por sucursal y turno, entrega firmada con la cuenta y validación de recepción.</p>
