@@ -1,4 +1,5 @@
 import {useEffect,useState} from 'react';
+import AdditionalActivities from './AdditionalActivities';
 import {supabase} from './lib';
 import type {Branch} from './lib';
 type Template={id:string;branch_id:string;weekday:number;shift_code:string;activity:string};
@@ -21,7 +22,7 @@ export default function CleaningModule({branches,userId,manager,hasOpenAttendanc
  const canEdit=!!current&&!current.submitted_at&&(manager||(hasOpenAttendance&&!!assignedBranchId&&assignedBranchId===branch));
  const canValidate=!!current?.submitted_at&&!current.received_at&&(current.submitted_by??current.created_by)!==userId&&(manager||(hasOpenAttendance&&assignedBranchId===branch));
  async function call(fn:string,args:Record<string,unknown>){if(!supabase)return;setBusy(true);setMsg('');try{const{error}=await supabase.rpc(fn,args);if(error)throw error;await load();setMsg('Guardado correctamente.')}catch(e){setMsg(e instanceof Error?e.message:'No se pudo guardar')}finally{setBusy(false)}}
- return <section className="panel" id="fsb-limpieza"><h2>Pendientes y Supervisión de Turnos</h2><p className="muted">Checklist por sucursal y turno. El siguiente turno evalúa las actividades, incluso al día siguiente. La salida laboral es independiente.</p>
+ return <section className="panel" id="fsb-limpieza"><h2>Mis actividades de limpieza hoy</h2><p className="muted">Checklist por sucursal y turno. El siguiente turno evalúa las actividades, incluso al día siguiente. La salida laboral es independiente.</p>
  {awaiting.length>0&&<div className="panel"><h3>Actividades pendientes de revisión</h3><p>Puedes revisar el turno anterior, incluso si fue ayer. La revisión no impide que la otra empleada registre su salida.</p>{awaiting.map(h=><button key={h.id} className="btn secondary" style={{margin:5}} onClick={()=>{setBranch(h.branch_id);setDate(h.work_date);setShift(h.shift_code)}}>{branches.find(b=>b.id===h.branch_id)?.name} · {h.work_date} · {shiftName[h.shift_code]} · Revisar</button>)}</div>}
  {myDeliveries.length>0&&<div className="panel"><h3>Mis actividades y evaluaciones</h3>{myDeliveries.slice(0,8).map(h=><div key={h.id}><strong>{h.work_date} · {branches.find(b=>b.id===h.branch_id)?.name}</strong> — {h.received_at?'Evaluada por el siguiente turno':'Pendiente de evaluación'}{h.received_at&&<p>{checks.filter(c=>c.handoff_id===h.id).map(c=>templateName(c.template_id)+': '+(c.validation==='accepted'?'Conforme':'No conforme'+(c.validation_note?' — '+c.validation_note:''))).join(' | ')}</p>}</div>)}</div>}
  <div className="grid"><label className="field">Sucursal<select value={branch} disabled={!manager&&awaiting.length===0} onChange={e=>setBranch(e.target.value)}>{branches.map(b=><option key={b.id} value={b.id}>{b.name}</option>)}</select></label><label className="field">Fecha<input type="date" value={date} disabled={!manager&&awaiting.length===0} onChange={e=>setDate(e.target.value)}/></label></div>
@@ -40,5 +41,6 @@ export default function CleaningModule({branches,userId,manager,hasOpenAttendanc
  </>}
  {manager&&<div className="panel"><h3>Supervisión de Gerencia</h3><p className="muted">Entregas recientes y pendientes de validación</p>{handoffs.slice(0,20).map(h=><p key={h.id}>{branches.find(b=>b.id===h.branch_id)?.name} · {h.work_date} · {shiftName[h.shift_code]} — {h.received_at?'Recibido':h.submitted_at?'Pendiente de recepción':'Sin entregar'} · {checks.filter(c=>c.handoff_id===h.id&&c.status==='blocked').length} pendientes</p>)}</div>}
  {msg&&<p className="notice" role="status">{msg}</p>}
+ <AdditionalActivities userId={userId} manager={manager} hasOpenAttendance={hasOpenAttendance} assignedBranchId={assignedBranchId} branches={branches}/>
  </section>
 }
