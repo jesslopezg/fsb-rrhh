@@ -1,0 +1,26 @@
+import {useEffect,useMemo,useState} from 'react';
+import {supabase} from './lib';
+import type {Branch,Profile} from './lib';
+
+type Sale={id:string;employee_id:string;branch_id:string;visited_at:string;people_count:number;made_purchase:boolean;units:number;total:number;categories:string[];payment_method:string|null};
+const day=(v:string)=>new Intl.DateTimeFormat('en-CA',{timeZone:'America/Tijuana'}).format(new Date(v));
+const money=(n:number)=>'$'+n.toLocaleString('es-MX',{minimumFractionDigits:2,maximumFractionDigits:2});
+
+export default function SalesDashboard({branches,employees}:{branches:Branch[];employees:Profile[]}){
+ const[rows,setRows]=useState<Sale[]>([]),[days,setDays]=useState(30),[branch,setBranch]=useState(''),[employee,setEmployee]=useState('');
+ useEffect(()=>{(async()=>{if(!supabase)return;const since=new Date(Date.now()-120*86400000).toISOString();const{data}=await supabase.from('sales_visits').select('*').gte('visited_at',since).order('visited_at');setRows((data??[]) as Sale[])})()},[]);
+ const filtered=useMemo(()=>{const since=Date.now()-days*86400000;return rows.filter(r=>new Date(r.visited_at).getTime()>=since&&(!branch||r.branch_id===branch)&&(!employee||r.employee_id===employee))},[rows,days,branch,employee]);
+ const sales=filtered.reduce((a,r)=>a+Number(r.total),0),visits=filtered.length,people=filtered.reduce((a,r)=>a+r.people_count,0),purchases=filtered.filter(r=>r.made_purchase).length,units=filtered.reduce((a,r)=>a+r.units,0);
+ const conversion=visits?purchases/visits*100:0,ticket=purchases?sales/purchases:0;
+ const byBranch=branches.map(b=>({name:b.name,total:filtered.filter(r=>r.branch_id===b.id).reduce((a,r)=>a+Number(r.total),0)})).sort((a,b)=>b.total-a.total);
+ const bySeller=employees.filter(e=>e.role==='employee'||e.role==='manager').map(e=>({name:e.full_name,total:filtered.filter(r=>r.employee_id===e.id).reduce((a,r)=>a+Number(r.total),0)})).filter(x=>x.total>0).sort((a,b)=>b.total-a.total);
+ const dates=[...new Set(filtered.map(r=>day(r.visited_at)))].sort(); const byDay=dates.map(d=>({name:d,total:filtered.filter(r=>day(r.visited_at)===d).reduce((a,r)=>a+Number(r.total),0)}));
+ const maxB=Math.max(1,...byBranch.map(x=>x.total)),maxS=Math.max(1,...bySeller.map(x=>x.total)),maxD=Math.max(1,...byDay.map(x=>x.total));
+ const Bars=({data,max}:{data:{name:string;total:number}[],max:number})=><div>{data.map(x=><div key={x.name} style={{margin:'10px 0'}}><div style={{display:'flex',justifyContent:'space-between',gap:8}}><span>{x.name}</span><strong>{money(x.total)}</strong></div><div style={{height:12,background:'#eee',borderRadius:8,overflow:'hidden'}}><div style={{height:'100%',width:(x.total/max*100)+'%',background:'currentColor',borderRadius:8}}/></div></div>)}</div>;
+ return <section className="panel"><h2>Dashboard de Ventas</h2><p className="muted">Comparativo operativo con los registros capturados en Ventas.</p>
+ <div className="grid"><label className="field">Periodo<select value={days} onChange={e=>setDays(Number(e.target.value))}><option value={7}>Últimos 7 días</option><option value={30}>Últimos 30 días</option><option value={90}>Últimos 90 días</option></select></label><label className="field">Sucursal<select value={branch} onChange={e=>setBranch(e.target.value)}><option value="">Todas</option>{branches.map(b=><option value={b.id} key={b.id}>{b.name}</option>)}</select></label><label className="field">Vendedora<select value={employee} onChange={e=>setEmployee(e.target.value)}><option value="">Todas</option>{employees.filter(e=>e.active).map(e=><option value={e.id} key={e.id}>{e.full_name}</option>)}</select></label></div>
+ <div className="grid" style={{gridTemplateColumns:'repeat(auto-fit,minmax(130px,1fr))'}}><div className="panel"><small>Venta</small><h2>{money(sales)}</h2></div><div className="panel"><small>Visitas</small><h2>{visits}</h2></div><div className="panel"><small>Personas</small><h2>{people}</h2></div><div className="panel"><small>Compras</small><h2>{purchases}</h2></div><div className="panel"><small>Conversión</small><h2>{conversion.toFixed(1)}%</h2></div><div className="panel"><small>Ticket promedio</small><h2>{money(ticket)}</h2></div><div className="panel"><small>Unidades</small><h2>{units}</h2></div></div>
+ <div className="grid"><div className="panel"><h3>Venta por sucursal</h3><Bars data={byBranch} max={maxB}/></div><div className="panel"><h3>Venta por vendedora</h3><Bars data={bySeller} max={maxS}/></div></div>
+ <div className="panel"><h3>Venta por día</h3><Bars data={byDay} max={maxD}/></div>
+ </section>
+}
